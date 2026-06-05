@@ -21,7 +21,7 @@ async function getArticles(source?: string) {
 
   const { data, error } = await query
   if (error) console.error('[page] fetch error:', error)
-  return (data || []) as Parameters<typeof NewsCard>[0]['article'][]
+  return (data || []) as unknown as Parameters<typeof NewsCard>[0]['article'][]
 }
 
 export default async function HomePage({
