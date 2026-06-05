@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/Header'
 import NewsCard from '@/components/NewsCard'
@@ -38,7 +39,7 @@ export default async function HomePage({
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Source filter */}
         <div className="flex gap-2 flex-wrap mb-6">
-          <a
+          <Link
             href="/"
             className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
               !source
@@ -47,9 +48,9 @@ export default async function HomePage({
             }`}
           >
             전체
-          </a>
+          </Link>
           {SOURCES.map((s) => (
-            <a
+            <Link
               key={s}
               href={`/?source=${encodeURIComponent(s)}`}
               className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
@@ -59,7 +60,7 @@ export default async function HomePage({
               }`}
             >
               {s}
-            </a>
+            </Link>
           ))}
         </div>
 
