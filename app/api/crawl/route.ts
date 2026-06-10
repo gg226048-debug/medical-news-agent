@@ -21,6 +21,19 @@ function makeTagSlug(name: string): string {
 
 export async function POST() {
   const admin = createServiceClient()
+
+  // ── 1단계: 기존 데이터 전체 삭제 ──
+  await admin
+    .from('article_tags')
+    .delete()
+    .neq('article_id', '00000000-0000-0000-0000-000000000000')
+
+  await admin
+    .from('articles')
+    .delete()
+    .neq('id', '00000000-0000-0000-0000-000000000000')
+
+  // ── 2단계: 뉴스 수집 ──
   const rawArticles = await crawlAll()
 
   const { data: category } = await admin
@@ -39,18 +52,9 @@ export async function POST() {
       continue
     }
 
-    const { data: existing } = await admin
-      .from('articles')
-      .select('id')
-      .eq('source_url', article.sourceUrl)
-      .maybeSingle()
-
-    if (existing) {
-      skipped++
-      continue
-    }
-
     const rawContent = article.content || article.summary || article.title
+
+    // ── 3단계: AI 한글 번역·요약 ──
     const { summary, title_ko, tags } = await summarizeArticle(
       article.title,
       rawContent,
@@ -60,9 +64,9 @@ export async function POST() {
     const { data: inserted, error } = await admin
       .from('articles')
       .insert({
-        title: title_ko || article.title,
+        title: title_ko || article.title,   // 한글 제목 저장
         slug: makeSlug(article.sourceName),
-        summary,
+        summary,                             // 한글 요약 저장
         content: rawContent,
         thumbnail_url: article.thumbnailUrl || null,
         category_id: category?.id || null,
@@ -86,6 +90,7 @@ export async function POST() {
       if (!tagSlug) continue
 
       let tagId: string | null = null
+
       const { data: existingTag } = await admin
         .from('tags')
         .select('id')
