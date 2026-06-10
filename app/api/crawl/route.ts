@@ -51,7 +51,7 @@ export async function POST() {
     }
 
     const rawContent = article.content || article.summary || article.title
-    const { summary, tags } = await summarizeArticle(
+    const { summary, title_ko, tags } = await summarizeArticle(
       article.title,
       rawContent,
       article.sourceName,
@@ -60,7 +60,7 @@ export async function POST() {
     const { data: inserted, error } = await admin
       .from('articles')
       .insert({
-        title: article.title,
+        title: title_ko || article.title,
         slug: makeSlug(article.sourceName),
         summary,
         content: rawContent,
