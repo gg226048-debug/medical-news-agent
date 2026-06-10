@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { summarizeArticle } from '@/lib/openrouter'
+import { translateArticle } from '@/lib/translator'
 import { crawlAll } from '@/lib/crawlers'
 
 export const runtime = 'nodejs'
@@ -22,18 +22,17 @@ function makeTagSlug(name: string): string {
 export async function POST() {
   const admin = createServiceClient()
 
-  // ── 1단계: 기존 데이터 전체 삭제 ──
+  // 1단계: 기존 데이터 전체 삭제
   await admin
     .from('article_tags')
     .delete()
     .neq('article_id', '00000000-0000-0000-0000-000000000000')
-
   await admin
     .from('articles')
     .delete()
     .neq('id', '00000000-0000-0000-0000-000000000000')
 
-  // ── 2단계: 뉴스 수집 ──
+  // 2단계: 뉴스 수집
   const rawArticles = await crawlAll()
 
   const { data: category } = await admin
@@ -43,19 +42,15 @@ export async function POST() {
     .single()
 
   let saved = 0
-  let skipped = 0
   const errors: string[] = []
 
   for (const article of rawArticles) {
-    if (!article.title || !article.sourceUrl) {
-      skipped++
-      continue
-    }
+    if (!article.title || !article.sourceUrl) continue
 
     const rawContent = article.content || article.summary || article.title
 
-    // ── 3단계: AI 한글 번역·요약 ──
-    const { summary, title_ko, tags } = await summarizeArticle(
+    // 3단계: Anthropic API로 한글 번역·요약
+    const { title_ko, summary, tags } = await translateArticle(
       article.title,
       rawContent,
       article.sourceName,
@@ -64,16 +59,16 @@ export async function POST() {
     const { data: inserted, error } = await admin
       .from('articles')
       .insert({
-        title: title_ko || article.title,   // 한글 제목 저장
-        slug: makeSlug(article.sourceName),
-        summary,                             // 한글 요약 저장
-        content: rawContent,
+        title:         title_ko,                // 한글 제목
+        slug:          makeSlug(article.sourceName),
+        summary,                                 // 한글 요약
+        content:       rawContent,
         thumbnail_url: article.thumbnailUrl || null,
-        category_id: category?.id || null,
-        source_name: article.sourceName,
-        source_url: article.sourceUrl,
-        status: 'published',
-        published_at: article.publishedAt
+        category_id:   category?.id || null,
+        source_name:   article.sourceName,
+        source_url:    article.sourceUrl,
+        status:        'published',
+        published_at:  article.publishedAt
           ? new Date(article.publishedAt).toISOString()
           : new Date().toISOString(),
       })
@@ -85,26 +80,20 @@ export async function POST() {
       continue
     }
 
+    // 태그 저장
     for (const tagName of tags) {
       const tagSlug = makeTagSlug(tagName)
       if (!tagSlug) continue
 
       let tagId: string | null = null
+      const { data: existing } = await admin
+        .from('tags').select('id').eq('slug', tagSlug).maybeSingle()
 
-      const { data: existingTag } = await admin
-        .from('tags')
-        .select('id')
-        .eq('slug', tagSlug)
-        .maybeSingle()
-
-      if (existingTag) {
-        tagId = existingTag.id
+      if (existing) {
+        tagId = existing.id
       } else {
         const { data: newTag } = await admin
-          .from('tags')
-          .insert({ name: tagName, slug: tagSlug })
-          .select('id')
-          .single()
+          .from('tags').insert({ name: tagName, slug: tagSlug }).select('id').single()
         tagId = newTag?.id || null
       }
 
@@ -121,7 +110,6 @@ export async function POST() {
 
   return NextResponse.json({
     saved,
-    skipped,
     total: rawArticles.length,
     errors: errors.length > 0 ? errors : undefined,
   })
