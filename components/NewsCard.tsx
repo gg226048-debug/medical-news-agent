@@ -40,7 +40,7 @@ interface ArticleCardProps {
 }
 
 export default function NewsCard({ article }: ArticleCardProps) {
-  const sourceName = article.source_name || 'Unknown'
+  const sourceName = article.source_name || '기타'
   const badgeClass = SOURCE_COLORS[sourceName] || 'bg-gray-100 text-gray-700'
   const tags = article.article_tags
     .map((at) => at.tags)
@@ -73,18 +73,28 @@ export default function NewsCard({ article }: ArticleCardProps) {
           </p>
         )}
 
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-auto pt-2">
-            {tags.map((tag) => (
-              <span
-                key={tag.slug}
-                className="text-xs px-2 py-0.5 bg-gray-50 text-gray-500 rounded-full border border-gray-200"
-              >
-                #{tag.name}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center justify-between mt-auto pt-2">
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <span
+                  key={tag.slug}
+                  className="text-xs px-2 py-0.5 bg-gray-50 text-gray-500 rounded-full border border-gray-200"
+                >
+                  #{tag.name}
+                </span>
+              ))}
+            </div>
+          )}
+          <a
+            href={article.source_url || '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-blue-500 hover:text-blue-700 ml-auto"
+          >
+            원문 보기 →
+          </a>
+        </div>
       </div>
     </article>
   )
